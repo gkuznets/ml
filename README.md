@@ -1,4 +1,4 @@
-ml
-==
+ML Playground
+=============
 
-ML playground
+*minst* -- trains classifier for handwritten digits recognition.
