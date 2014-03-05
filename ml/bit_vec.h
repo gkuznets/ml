@@ -1,15 +1,18 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
-#include <vector>
 
 namespace ml {
 
 template <unsigned size>
 class BitVec {
 public:
+    BitVec() {
+        packs_.fill(0ul);
+    }
+
     BitVec(BitVec&&) = default;
-    BitVec() : packs_(1 + (size - 1) / 64, 0ul) {}
 
     BitVec& operator= (BitVec&& othr) = default;
     BitVec& operator= (const BitVec& other) {
@@ -44,7 +47,7 @@ public:
     friend unsigned distance(const BitVec<N>& a, const BitVec<N>& b);
 
 private:
-    std::vector<uint64_t> packs_;
+    std::array<uint64_t, 1 + (size - 1) / 64> packs_;
 
 };
 
