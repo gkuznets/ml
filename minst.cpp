@@ -137,8 +137,8 @@ int main(int argc, char** argv) {
     }
 
     auto minstTrainingSet = readMINSTDataset(
-            vars["train-images"].as<std::string>(),
-            vars["train-labels"].as<std::string>());
+            vars["training-images"].as<std::string>(),
+            vars["training-labels"].as<std::string>());
 
     auto minstTestSet = readMINSTDataset(
             vars["test-images"].as<std::string>(),
