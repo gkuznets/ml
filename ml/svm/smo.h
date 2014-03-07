@@ -22,7 +22,7 @@ namespace smo {
 namespace {
 
 uint64_t random(uint64_t n) {
-    std::random_device rd;
+    static std::random_device rd;
     std::uniform_int_distribution<uint64_t> dist(0, n - 1);
     return dist(rd);
 }
