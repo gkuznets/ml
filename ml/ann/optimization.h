@@ -27,7 +27,7 @@ void batchGradDescend(
 
     double oldCost = std::numeric_limits<double>::max();
     double newCost = 0.0;
-    while (std::abs(oldCost - newCost) > 0.000001 * m) {
+    while (std::abs(oldCost - newCost) > 0.00001 * m) {
         oldCost = newCost;
         newCost = 0.0;
 
