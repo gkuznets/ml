@@ -60,18 +60,35 @@ struct Layers<LrInst> {
     typedef meta::list<> type;
 };
 
-template <typename InputLayer, typename OutputLayer>
-class Connections {
+namespace {
+
+template <typename Matrix>
+void fillRandom(Matrix& m) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(-1.0, 1.0);
+    for (unsigned row = 0; row < m.rows(); ++row) {
+        for (unsigned col = 0; col < m.cols(); ++col) {
+            m(row, col) = dis(gen);
+        }
+    }
+}
+
+} // namespace
+
+template <typename InputLayer
+         ,typename OutputLayer>
+class Connections {};
+
+template <typename InputLayer
+         ,unsigned N
+         ,typename ActivationFn>
+class Connections<
+        InputLayer,
+        Layer<InputLayer, FullyConnected<N, ActivationFn>>> {
 public:
     void init() {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dis(-1.0, 1.0);
-        for (unsigned row = 0; row < rows_; ++row) {
-            for (unsigned col = 0; col < cols_; ++col) {
-                weights_(row, col) = dis(gen);
-            }
-        }
+        fillRandom(weights_);
     }
 
     void zero() {
@@ -106,12 +123,34 @@ public:
     }
 
 private:
-    const unsigned rows_ = OutputLayer::numNodes;
-    const unsigned cols_ = InputLayer::numNodes + 1;
-    Eigen::Matrix<double
-                 ,OutputLayer::numNodes
-                 ,InputLayer::numNodes + 1> weights_;
+    typedef Layer<InputLayer, FullyConnected<N, ActivationFn>> OutputLayer;
+    static const unsigned rows_ = OutputLayer::numNodes;
+    static const unsigned cols_ = InputLayer::numNodes + 1;
+    Eigen::Matrix<double, rows_, cols_> weights_;
 };
+
+template <typename InputLayer
+         ,unsigned N
+         ,typename ActivationFn>
+class Connections<
+        InputLayer,
+        Layer<InputLayer, SymmetricFullyConnected<N, ActivationFn>>> {
+public:
+    void init() {
+        fillRandom(weights_);
+    }
+
+    template <typename ColVector>
+    auto transform(const ColVector& input) const {
+        auto hidden = weights_ * input;
+    }
+
+private:
+    static const unsigned rows_ = N;
+    static const unsigned cols_ = InputLayer::numNodes + 1;
+    Eigen::Matrix<double, rows_, cols_> weights_;
+};
+
 
 template <typename Layer>
 using Activations = Eigen::Matrix<double, Layer::numNodes + 1, 1>;
