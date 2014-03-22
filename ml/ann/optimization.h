@@ -3,7 +3,7 @@
 #include <meta/meta.h>
 #include <meta/tuple.h>
 
-#include <cmath> // see todo
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <tuple>
@@ -40,8 +40,9 @@ void batchGradDescend(
                     typename NetConf::Layers{});
 
             // Backpropagation
-            const auto& yi = dataset.labels(i);
-            meta::tup_last(delta)(0) = meta::tup_last(activations)(0) - yi;
+            const auto& label = dataset.labels.col(i);
+            meta::tup_last(delta) =
+                meta::tup_last(activations).head(label.size()) - label;
             meta::tup_each(
                     [](auto& delta, const auto& prevDelta,
                        const auto& theta, const auto& activations) {
@@ -60,9 +61,8 @@ void batchGradDescend(
                         acc.add(delta * activations.transpose());
                     },
                     accumulatedDeltas, delta, activations);
-            double hxi = meta::tup_last(activations)(0);
-            // TODO: add LossFunction to NetworkConf
-            newCost -= ((1.0 + yi) * log(1.0 + hxi) + (1.0 - yi) * log(1.0 - hxi));
+            const auto& prediction = meta::tup_last(activations);
+            newCost += NetConf::lossFn(prediction, label);
         }
         meta::tup_each(
                 [regParam, learningRate] (auto& theta, const auto& acc) {
