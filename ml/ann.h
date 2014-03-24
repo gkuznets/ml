@@ -19,8 +19,15 @@ struct CrossEntropy {
     template <typename Prediction, typename Label>
     double operator()(Prediction&& prediction, Label&& label) const {
         // TODO: figure out dependency on last activation fn
-        return -((1.0 + label(0)) * log(1.0 + prediction(0)) +
-                 (1.0 - label(0)) * log(1.0 - prediction(0)));
+        return -((1.0 + label.array()) * (1.0 + prediction.array()).log() +
+                 (1.0 - label.array()) * (1.0 - prediction.array()).log()).sum();
+    }
+};
+
+struct QuadLoss {
+   template <typename Prediction, typename Label>
+    double operator()(Prediction&& prediction, Label&& label) const {
+        return 0.5 * (prediction - label).squaredNorm();
     }
 };
 
@@ -33,7 +40,7 @@ struct NetworkConf {
                             meta::tail<Layers>>;
     using Activations = meta::map<detail::Activations, Layers>;
     using Deltas = meta::map<detail::Deltas, meta::tail<Layers>>;
-    static const CrossEntropy lossFn;
+    static const QuadLoss lossFn;
 };
 
 namespace {
