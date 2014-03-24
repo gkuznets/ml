@@ -31,7 +31,6 @@ void batchGradDescend(
         oldCost = newCost;
         newCost = 0.0;
 
-        meta::tup_each([] (auto& a) { last(a) = 1.0; }, activations);
         meta::tup_each([] (auto& x) { x.zero(); }, accumulatedDeltas);
 
         for (uint64_t i = 0; i < m; ++i) {
@@ -41,16 +40,13 @@ void batchGradDescend(
 
             // Backpropagation
             const auto& label = dataset.labels.col(i);
-            meta::tup_last(delta) =
-                meta::tup_last(activations).head(label.size()) - label;
+            meta::tup_last(delta) = meta::tup_last(activations) - label;
             meta::tup_each(
                     [](auto& delta, const auto& prevDelta,
                        const auto& theta, const auto& activations) {
 
-                        const size_t size = delta.size();
-                        delta = theta.backTransform(prevDelta).head(size);
-                        delta.array() *=
-                            (1 - activations.head(size).array().square());
+                        delta = theta.backTransform(prevDelta);
+                        delta.array() *= (1 - activations.array().square());
                     },
                     meta::tup_tail(meta::tup_reverse(delta)),
                     meta::tup_reverse(delta),
@@ -58,7 +54,7 @@ void batchGradDescend(
                     meta::tup_tail(meta::tup_reverse(activations)));
             meta::tup_each(
                     [](auto& acc, const auto& delta, const auto& activations) {
-                        acc.add(delta * activations.transpose());
+                        acc.propagate(delta, activations);
                     },
                     accumulatedDeltas, delta, activations);
             const auto& prediction = meta::tup_last(activations);

@@ -86,24 +86,33 @@ template <typename InputLayer
 class Connections<
         InputLayer,
         Layer<InputLayer, FullyConnected<N, ActivationFn>>> {
+    typedef Layer<InputLayer, FullyConnected<N, ActivationFn>> OutputLayer;
+    static const unsigned rows_ = OutputLayer::numNodes;
+    static const unsigned cols_ = InputLayer::numNodes;
+    Eigen::Matrix<double, rows_, cols_> weights_;
+    Eigen::Matrix<double, rows_, 1> bias_;
 public:
     void init() {
         fillRandom(weights_);
+        fillRandom(bias_);
     }
 
     void zero() {
         weights_.fill(0.0);
+        bias_.fill(0.0);
     }
 
     double squaredNorm() const {
         // Don't regularize bias terms
-        return weights_.leftCols(cols_ - 1).squaredNorm();
+        return weights_.squaredNorm();
     }
 
     // TODO: use a better name
+    // TODO: investigate problem with clang
     template <typename ColVector>
-    auto transform(const ColVector& input) const {
-        return weights_ * input;
+    Eigen::Matrix<double, OutputLayer::numNodes, 1>
+    transform(const ColVector& input) const {
+        return weights_ * input + bias_;
     }
 
     template <typename ColVector>
@@ -111,22 +120,22 @@ public:
         return weights_.transpose() * vec;
     }
 
-    template <typename Matrix>
-    void add(Matrix&& delta) {
-        weights_ += delta;
+    template <typename Delta, typename Activations>
+    void propagate(Delta&& delta, Activations&& activations) {
+        weights_ += delta * activations.transpose();
+        bias_ += delta;
     }
 
     void update(
-            double regParam, double learningRate, const Connections& delta) {
+            double regParam,
+            double learningRate,
+            const Connections& delta) {
         weights_ *= (1.0 - regParam * learningRate);
+        bias_ *= (1.0 - regParam * learningRate);
         weights_ -= learningRate * delta.weights_;
+        bias_ -= learningRate * delta.bias_;
     }
 
-private:
-    typedef Layer<InputLayer, FullyConnected<N, ActivationFn>> OutputLayer;
-    static const unsigned rows_ = OutputLayer::numNodes;
-    static const unsigned cols_ = InputLayer::numNodes + 1;
-    Eigen::Matrix<double, rows_, cols_> weights_;
 };
 
 template <typename InputLayer
@@ -153,7 +162,7 @@ private:
 
 
 template <typename Layer>
-using Activations = Eigen::Matrix<double, Layer::numNodes + 1, 1>;
+using Activations = Eigen::Matrix<double, Layer::numNodes, 1>;
 
 template <typename Layer>
 using Deltas = Eigen::Matrix<double, Layer::numNodes, 1>;

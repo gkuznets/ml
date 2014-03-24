@@ -46,7 +46,7 @@ public:
         : connections_(std::move(connections)) {}
 
     template <typename ColVector>
-    double operator() (const ColVector& input) const {
+    auto operator() (const ColVector& input) const {
         return detail::feedForward(input, connections_, Layers{});
     }
 
