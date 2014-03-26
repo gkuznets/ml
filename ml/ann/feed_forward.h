@@ -11,42 +11,38 @@ namespace ml {
 namespace ann {
 namespace detail {
 
-template <typename ColVector
+template <typename Input
          ,typename Connections
          ,typename Layers>
-Eigen::VectorXd feedForward(
-        const ColVector& input,
+Eigen::MatrixXd feedForward(
+        const Input& input,
         const Connections& connections,
         Layers) {
-    Eigen::VectorXd result = input;
+    Eigen::MatrixXd result = input;
     meta::tup_each(
             [&result](const auto& conn, auto layer) {
-                result = conn.transform(result);
-                for (unsigned i = 0; i < result.size(); ++i) {
-                    result[i] = layer.activation(result[i]);
-                }
+                typename decltype(layer)::Activation act;
+                result = act(conn.transform(result));
             },
             connections,
             meta::apply<std::tuple, meta::tail<Layers>>());
     return result;
 }
 
-template <typename ColVector
+template <typename Input
          ,typename Connections
          ,typename Activations
          ,typename Layers>
 void feedForward(
-        const ColVector& input,
+        const Input& input,
         const Connections& connections,
         Activations& activations,
         Layers) {
     std::get<0>(activations) = input;
     meta::tup_each(
             [](const auto& conn, const auto& in, auto& out, auto layer) {
-                out = conn.transform(in);
-                for (unsigned j = 0; j < out.size(); ++j) {
-                    out(j) = layer.activation(out(j));
-                }
+                typename decltype(layer)::Activation act;
+                out = act(conn.transform(in));
             },
             connections,
             activations,

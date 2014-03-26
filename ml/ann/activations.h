@@ -19,6 +19,16 @@ struct Tanh {
     double operator()(double x) const {
         return std::tanh(x);
     }
+
+    template <typename Input>
+    auto operator() (Input input) const {
+        for (unsigned row = 0; row < input.rows(); ++row) {
+            for (unsigned col = 0; col < input.cols(); ++col) {
+                input(row, col) = tanh(input(row, col));
+            }
+        }
+        return input;
+    }
 };
 
 } // namespace ann

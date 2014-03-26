@@ -32,6 +32,21 @@ template <typename T
 using prepend = typename prepend_t<T, List>::type;
 
 
+template <typename T
+         ,unsigned size>
+struct list_of_t {
+    typedef prepend<T, typename list_of_t<T, size - 1>::type> type;
+};
+
+template <typename T>
+struct list_of_t<T, 0> {
+    typedef list<> type;
+};
+
+template <typename T, unsigned size>
+using list_of = typename list_of_t<T, size>::type;
+
+
 template <template <typename... T> class F
          ,typename List>
 struct map_t {};

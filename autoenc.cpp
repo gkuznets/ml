@@ -84,21 +84,32 @@ uint64_t size(const ANNDataset& ds) {
 int main() {
     const size_t datasetSize = 2000;
     auto images = generateImages(datasetSize);
-    ANNDataset trainSet(datasetSize);
+    ANNDataset trainingSet(datasetSize);
     unsigned pos = 0;
     for (const auto& img: images) {
         auto vec = img2vec(img);
-        trainSet.examples.col(pos) = vec;
-        trainSet.labels.col(pos) = vec;
+        trainingSet.examples.col(pos) = vec;
+        trainingSet.labels.col(pos) = vec;
         pos++;
     }
+
+    auto validationImages = generateImages(300);
+    ANNDataset validationSet(300);
+    pos = 0;
+    for (const auto& img: validationImages) {
+        auto vec = img2vec(img);
+        validationSet.examples.col(pos) = vec;
+        validationSet.labels.col(pos) = vec;
+        pos++;
+    }
+
     typedef ml::ann::NetworkConf<
         ml::ann::Input<100>,
-        ml::ann::FullyConnected<120>,
+        ml::ann::FullyConnected<60>,
         ml::ann::FullyConnected<100>> NetworkConf;
 
     time_t start = clock();
-    auto clsfr = ml::ann::train(NetworkConf{}, trainSet);
+    auto clsfr = ml::ann::train(NetworkConf{}, trainingSet, validationSet);
     std::cout << " time: " << (clock() - start) / CLOCKS_PER_SEC << "\n";
     auto test = generateImages(1);
     dump(test[0]);

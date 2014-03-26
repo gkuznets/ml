@@ -199,6 +199,10 @@ auto&& tup_last(std::tuple<Ts...>& tuple) {
     return std::get<std::tuple_size<std::tuple<Ts...>>::value - 1>(tuple);
 }
 
+template <typename... Ts>
+auto&& tup_last(const std::tuple<Ts...>& tuple) {
+    return std::get<std::tuple_size<std::tuple<Ts...>>::value - 1>(tuple);
+}
 namespace {
 
 template <typename F

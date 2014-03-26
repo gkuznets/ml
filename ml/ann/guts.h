@@ -13,7 +13,7 @@ namespace detail {
 
 template <typename PrevLayer
          ,typename Type>
-struct Layer { };
+struct Layer {};
 
 template <unsigned N>
 struct Layer<meta::none, Input<N>> {
@@ -32,7 +32,7 @@ template <typename PrevLayer
          ,typename ActivationFn>
 struct Layer<PrevLayer, FullyConnected<N, ActivationFn>> {
     static const unsigned numNodes = N;
-    static const ActivationFn activation;
+    typedef ActivationFn Activation;
 };
 
 template <typename PrevLayer
@@ -40,7 +40,11 @@ template <typename PrevLayer
          ,typename ActivationFn>
 struct Layer<PrevLayer, SymmetricFullyConnected<N, ActivationFn>> {
     static const unsigned numNodes = PrevLayer::numNodes;
-    static const ActivationFn activation;
+
+    template <typename Input>
+    auto activation(Input&& x) const {
+        return ActivationFn{}(std::forward(x));
+    }
 };
 
 
@@ -109,21 +113,21 @@ public:
 
     // TODO: use a better name
     // TODO: investigate problem with clang
-    template <typename ColVector>
-    Eigen::Matrix<double, OutputLayer::numNodes, 1>
-    transform(const ColVector& input) const {
-        return weights_ * input + bias_;
+    template <typename Input>
+    Eigen::Matrix<double, OutputLayer::numNodes, Input::ColsAtCompileTime>
+    transform(const Input& input) const {
+        return (weights_ * input).colwise() + bias_;
     }
 
-    template <typename ColVector>
-    auto backTransform(const ColVector& vec) const {
-        return weights_.transpose() * vec;
+    template <typename Input>
+    auto backTransform(const Input& delta) const {
+        return weights_.transpose() * delta;
     }
 
     template <typename Delta, typename Activations>
     void propagate(Delta&& delta, Activations&& activations) {
         weights_ += delta * activations.transpose();
-        bias_ += delta;
+        bias_ += delta.rowwise().sum();
     }
 
     void update(
@@ -135,7 +139,6 @@ public:
         weights_ -= learningRate * delta.weights_;
         bias_ -= learningRate * delta.bias_;
     }
-
 };
 
 template <typename InputLayer
@@ -160,13 +163,13 @@ private:
     Eigen::Matrix<double, rows_, cols_> weights_;
 };
 
+template <unsigned N>
+struct BatchSize {
+    static const unsigned value = N;
+};
 
-template <typename Layer>
-using Activations = Eigen::Matrix<double, Layer::numNodes, 1>;
-
-template <typename Layer>
-using Deltas = Eigen::Matrix<double, Layer::numNodes, 1>;
-
+template <typename Layer, typename BatchSize>
+using Nodes = Eigen::Matrix<double, Layer::numNodes, BatchSize::value>;
 
 } // namespace detail
 } // namespace ann
