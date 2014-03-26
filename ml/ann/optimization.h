@@ -1,13 +1,11 @@
 #pragma once
 
-#include <meta/meta.h>
 #include <meta/tuple.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <tuple>
 
 namespace ml {
 namespace ann {
@@ -46,7 +44,7 @@ template <unsigned batchSize
          ,typename Dataset
          ,typename StopCriterion
          ,typename NetConf>
-auto gradDescent(const Dataset& dataset,
+void gradDescent(const Dataset& dataset,
                  double regParam, // weight decay parameter
                  StopCriterion stopCiterion) {
     const uint64_t dsSize = size(dataset);
@@ -78,7 +76,6 @@ auto gradDescent(const Dataset& dataset,
         }
         epoch++;
     }
-    return connections;
 }
 
 
