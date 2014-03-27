@@ -13,6 +13,7 @@ public:
     }
 
     BitVec(BitVec&&) = default;
+    BitVec(const BitVec&) = default;
 
     BitVec& operator= (BitVec&& othr) = default;
     BitVec& operator= (const BitVec& other) {
