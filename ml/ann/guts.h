@@ -1,9 +1,8 @@
 #pragma once
 
 #include <meta/meta.h>
+#include <ml/ann/connection.h>
 #include <ml/ann/layer_types.h>
-
-#include <random>
 
 #include <Eigen/Dense>
 
@@ -49,7 +48,7 @@ struct Layer<PrevLayer, SymmetricFullyConnected<N, ActivationFn>> {
 
 
 template <typename LrInst, typename... LrTypes>
-struct Layers { };
+struct Layers {};
 
 template <typename LrInst, typename LrType, typename... LrTypes>
 struct Layers<LrInst, LrType, LrTypes...> {
@@ -64,104 +63,24 @@ struct Layers<LrInst> {
     typedef meta::list<> type;
 };
 
-namespace {
+template <typename InputLayer
+         ,typename OutputLayer>
+struct ConnectionSelector {};
 
-template <typename Matrix>
-void fillRandom(Matrix& m) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(-1.0, 1.0);
-    for (unsigned row = 0; row < m.rows(); ++row) {
-        for (unsigned col = 0; col < m.cols(); ++col) {
-            m(row, col) = dis(gen);
-        }
-    }
-}
-
-} // namespace
+template <typename InputLayer
+         ,unsigned N
+         ,typename ActivationFn>
+struct ConnectionSelector<
+                InputLayer,
+                Layer<InputLayer, FullyConnected<N, ActivationFn>>> {
+    typedef Layer<InputLayer, FullyConnected<N, ActivationFn>> OutputLayer;
+    typedef FullConnection<InputLayer::numNodes, OutputLayer::numNodes> type;
+};
 
 template <typename InputLayer
          ,typename OutputLayer>
-class Connections {};
+using Connection = typename ConnectionSelector<InputLayer, OutputLayer>::type;
 
-template <typename InputLayer
-         ,unsigned N
-         ,typename ActivationFn>
-class Connections<
-        InputLayer,
-        Layer<InputLayer, FullyConnected<N, ActivationFn>>> {
-    typedef Layer<InputLayer, FullyConnected<N, ActivationFn>> OutputLayer;
-    static const unsigned rows_ = OutputLayer::numNodes;
-    static const unsigned cols_ = InputLayer::numNodes;
-    Eigen::Matrix<double, rows_, cols_> weights_;
-    Eigen::Matrix<double, rows_, 1> bias_;
-public:
-    void init() {
-        fillRandom(weights_);
-        fillRandom(bias_);
-    }
-
-    void zero() {
-        weights_.fill(0.0);
-        bias_.fill(0.0);
-    }
-
-    double squaredNorm() const {
-        // Don't regularize bias terms
-        return weights_.squaredNorm();
-    }
-
-    // TODO: use a better name
-    // TODO: investigate problem with clang
-    template <typename Input>
-    Eigen::Matrix<double, OutputLayer::numNodes, Input::ColsAtCompileTime>
-    transform(const Input& input) const {
-        return (weights_ * input).colwise() + bias_;
-    }
-
-    template <typename Input>
-    auto backTransform(const Input& delta) const {
-        return weights_.transpose() * delta;
-    }
-
-    template <typename Delta, typename Activations>
-    void propagate(Delta&& delta, Activations&& activations) {
-        weights_ += delta * activations.transpose();
-        bias_ += delta.rowwise().sum();
-    }
-
-    void update(
-            double regParam,
-            double learningRate,
-            const Connections& delta) {
-        weights_ *= (1.0 - regParam * learningRate);
-        bias_ *= (1.0 - regParam * learningRate);
-        weights_ -= learningRate * delta.weights_;
-        bias_ -= learningRate * delta.bias_;
-    }
-};
-
-template <typename InputLayer
-         ,unsigned N
-         ,typename ActivationFn>
-class Connections<
-        InputLayer,
-        Layer<InputLayer, SymmetricFullyConnected<N, ActivationFn>>> {
-public:
-    void init() {
-        fillRandom(weights_);
-    }
-
-    template <typename ColVector>
-    auto transform(const ColVector& input) const {
-        auto hidden = weights_ * input;
-    }
-
-private:
-    static const unsigned rows_ = N;
-    static const unsigned cols_ = InputLayer::numNodes + 1;
-    Eigen::Matrix<double, rows_, cols_> weights_;
-};
 
 template <unsigned N>
 struct BatchSize {
@@ -169,7 +88,8 @@ struct BatchSize {
 };
 
 template <typename Layer, typename BatchSize>
-using Nodes = Eigen::Matrix<double, Layer::numNodes, BatchSize::value>;
+using Nodes = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+//using Nodes = Eigen::Matrix<double, Layer::numNodes, BatchSize::value>;
 
 } // namespace detail
 } // namespace ann

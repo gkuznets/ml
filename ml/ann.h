@@ -53,7 +53,7 @@ private:
             meta::length<Layers>::value - 1>>;
 
     typedef meta::zipWith<
-                    detail::Connections,
+                    detail::Connection,
                     Layers,
                     meta::tail<Layers>> ConnectionTypes;
 public:
