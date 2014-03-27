@@ -1,3 +1,4 @@
+#include "read_minst.h"
 #include <ml/bit_vec.h>
 #include <ml/dag_muticlass.h>
 #include <ml/dataset/dataset.h>
@@ -6,91 +7,22 @@
 #include <ml/svm/svc.h>
 
 #include <cstdint>
-#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
 #include <boost/program_options.hpp>
 
-const uint32_t IMAGE_WIDTH = 28;
-const uint32_t IMAGE_HEIGHT = 28;
-const uint32_t IMAGE_SIZE = IMAGE_WIDTH * IMAGE_HEIGHT;
+typedef ml::VecDataset<MINSTImage, int> MINSTDataset;
 
-typedef ml::VecDataset<ml::BitVec<IMAGE_SIZE>, int> MINSTDataset;
-
-uint32_t swapEndian(uint32_t u) {
-    return (u << 24) |
-           ((u << 8) & 0x00FF0000) |
-           ((u >> 8) & 0x0000FF00) |
-           (u >> 24);
-}
-
-template <typename IStream, typename T>
-void readValue(IStream& inputStream, T& t) {
-    inputStream.read(reinterpret_cast<char*>(&t), sizeof(t));
-}
-
-//! Reads set of handwritten images and corresponding labels.
-//! For information about IDX format used see http://yann.lecun.com/exdb/mnist/
-MINSTDataset readMINSTDataset(
-        const std::string& imagesFile,
-        const std::string& labelsFile)
-{
-    std::ifstream imagesStream(imagesFile, std::ios_base::binary);
-    std::ifstream labelsStream(labelsFile, std::ios_base::binary);
-
-    uint16_t zero;
-    uint8_t dataTypeCode;
-    uint8_t numOfDimensions;
-    uint32_t numOfImages;
-    uint32_t imageWidth;
-    uint32_t imageHeight;
-    // Reading IDX header for images
-    readValue(imagesStream, zero);
-    readValue(imagesStream, dataTypeCode);
-    readValue(imagesStream, numOfDimensions);
-    REQUIRE(zero == 0, "Invalid IDX header.");
-    REQUIRE(dataTypeCode == 0x08, "Invalid data type code for images.");
-    REQUIRE(numOfDimensions == 3, "Invalid number of dimensions for images.");
-    readValue(imagesStream, numOfImages);
-    readValue(imagesStream, imageWidth);
-    readValue(imagesStream, imageHeight);
-    numOfImages = swapEndian(numOfImages);
-    imageWidth = swapEndian(imageWidth);
-    imageHeight = swapEndian(imageHeight);
-    REQUIRE(imageWidth == IMAGE_WIDTH && imageHeight == IMAGE_HEIGHT,
-            "Incorrect image size");
-
-    // Reading IDX header for labels
-    uint32_t numOfLabels;
-    readValue(labelsStream, zero);
-    readValue(labelsStream, dataTypeCode);
-    readValue(labelsStream, numOfDimensions);
-    REQUIRE(zero == 0, "Invalid IDX header.");
-    REQUIRE(dataTypeCode == 0x08, "Invalid data type code for labels.");
-    REQUIRE(numOfDimensions == 1, "Invalid number of dimensions for labels.");
-    readValue(labelsStream, numOfLabels);
-    numOfLabels = swapEndian(numOfLabels);
-    REQUIRE(numOfImages == numOfLabels,
-            "Number of images and labels should be the same.");
-
-    MINSTDataset dataset(numOfImages);
-    std::vector<uint8_t> image(IMAGE_SIZE);
-    uint8_t label;
-    for (uint32_t i = 0; i < numOfImages; ++i) {
-        imagesStream.read(
-                reinterpret_cast<char*>(image.data()), IMAGE_SIZE);
-        ml::BitVec<IMAGE_SIZE> packedImage;
-        for (unsigned i = 0; i < IMAGE_SIZE; ++i) {
-            if (image[i]) {
-                packedImage.set(i);
-            }
-        }
-        readValue(labelsStream, label);
-        ml::set(i, packedImage, static_cast<int>(label), dataset);
-    }
-    return dataset;
+MINSTDataset
+readMINSTDataset(const std::string& imagesFile, const std::string& labelsFile) {
+    auto data = readMINSTData(imagesFile, labelsFile);
+    MINSTDataset result;
+    result.examples = std::move(data.first);
+    result.labels.resize(result.examples.size());
+    std::copy(data.second.begin(), data.second.end(), result.labels.begin());
+    return result;
 }
 
 template <typename Classifier>
