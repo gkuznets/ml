@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-typedef ml::BitVec<28> MINSTImage;
+typedef ml::BitVec<28 * 28> MINSTImage;
 
 //! Reads set of handwritten images and corresponding labels.
 //! For information about IDX format used see http://yann.lecun.com/exdb/mnist/
