@@ -56,10 +56,13 @@ BOOST_AUTO_TEST_CASE ( tup_reverse ) {
 }
 
 BOOST_AUTO_TEST_CASE ( tup_tail ) {
-    std::tuple<int, double, short> t{1, 2.0, 3};
+    auto t = std::make_tuple(1, 2.0, 3, 4);
     auto tl = meta::tup_tail(t);
     BOOST_CHECK_EQUAL(meta::get<0>(tl), meta::get<1>(t));
     BOOST_CHECK_EQUAL(meta::get<1>(tl), meta::get<2>(t));
+    auto ttl = meta::tup_tail(meta::tup_tail(t));
+    BOOST_CHECK_EQUAL(meta::get<0>(ttl), meta::get<2>(t));
+    BOOST_CHECK_EQUAL(meta::get<1>(ttl), meta::get<3>(t));
 }
 
 BOOST_AUTO_TEST_CASE ( tup_reverse_each_1 ) {
