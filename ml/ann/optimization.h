@@ -1,6 +1,8 @@
 #pragma once
 
 #include <meta/tuple.h>
+#include <ml/ann/params.h>
+#include <ml/ann/regularization.h>
 
 #include <algorithm>
 #include <cmath>
@@ -40,44 +42,46 @@ void backProp(
             accumulator, delta, activations);
 }
 
-template <unsigned batchSize
-         ,typename Dataset
-         ,typename StopCriterion
-         ,typename NetConf>
-void gradDescent(const Dataset& dataset,
-                 double regParam, // weight decay parameter
-                 StopCriterion stopCiterion) {
+template <typename Dataset
+         ,typename NetworkParmas
+         ,typename OptzParams>
+void gradDescent(const Dataset& dataset, OptzParams optimizationParams,
+                 NetworkParmas) {
     const uint64_t dsSize = size(dataset);
-    const double learningRate = 0.05;
+    const double learningRate = 0.005;
+    const unsigned batchSize = meta::get<batchSizeP>(optimizationParams);
+    const double batchLearningRate = learningRate / static_cast<double>(batchSize);
+    auto regularizer = meta::get<regularizationP>(optimizationParams);
+    auto stop = meta::get<stopCriterionP>(optimizationParams);
 
-    typename NetConf::Connections connections;
+    typename NetworkParmas::Connections connections;
     meta::tup_each([] (auto& c) { c.init(); }, connections);
     decltype(connections) accumulatedDeltas;
-    typename NetConf::template Activations<batchSize> activations;
-    typename NetConf::template Delta<batchSize> delta;
+    typename NetworkParmas::Activations activations;
+    typename NetworkParmas::Delta delta;
     unsigned epoch = 0;
-    while (!stopCiterion.fulfilled(epoch, connections)) {
+    while (!stop(epoch, connections)) {
         // TODO: sweep through the whole dataset starting at random position
         for (unsigned step = 0; step < dsSize / batchSize; ++step) {
             meta::tup_each([] (auto& x) { x.zero(); }, accumulatedDeltas);
             unsigned batchStart = step * batchSize;
-            auto examples = dataset.examples.template middleCols<batchSize>(batchStart);
-            auto labels = dataset.labels.template middleCols<batchSize>(batchStart);
+            auto examples = dataset.examples.middleCols(batchStart, batchSize);
+            auto labels = dataset.labels.middleCols(batchStart, batchSize);
 
             feedForward(
-                examples, connections, activations, typename NetConf::Layers{});
+                examples, connections, activations,
+                typename NetworkParmas::Layers{});
             backProp(labels, activations, connections, delta, accumulatedDeltas);
             meta::tup_each(
-                [regParam, learningRate] (auto& theta, const auto& acc) {
-                    theta.update(
-                        regParam, learningRate / static_cast<double>(batchSize), acc);
+                [batchLearningRate, &regularizer] (auto& theta, const auto& acc) {
+                    theta.applyRegularizer(regularizer, batchLearningRate);
+                    theta.update(acc, batchLearningRate);
                 },
                 connections, accumulatedDeltas);
         }
         epoch++;
     }
 }
-
 
 template <typename Dataset, typename Theta, typename NetConf>
 void batchGradDescent(

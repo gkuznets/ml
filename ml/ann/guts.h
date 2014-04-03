@@ -81,15 +81,8 @@ template <typename InputLayer
          ,typename OutputLayer>
 using Connection = typename ConnectionSelector<InputLayer, OutputLayer>::type;
 
-
-template <unsigned N>
-struct BatchSize {
-    static const unsigned value = N;
-};
-
-template <typename Layer, typename BatchSize>
+template <typename Layer>
 using Nodes = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
-//using Nodes = Eigen::Matrix<double, Layer::numNodes, BatchSize::value>;
 
 } // namespace detail
 } // namespace ann

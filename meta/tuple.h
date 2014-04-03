@@ -133,26 +133,41 @@ private:
     Tuple& tuple_;
 };
 
-
-template <typename Tuple>
-auto tup_tail(Tuple&& t) {
-    static_assert(tup_size<Tuple>::value > 0,
+template <typename... Ts>
+auto tup_tail(std::tuple<Ts...>& tuple) {
+    typedef std::tuple<Ts...> Tuple;
+    static_assert(std::tuple_size<Tuple>::value > 0,
         "Tail of an empty tuple is undefined");
-    return tuple_view<1, tup_size<Tuple>::value, Tuple>(
-            std::forward<Tuple>(t));
+    return tuple_view<1, std::tuple_size<Tuple>::value, Tuple, false>(tuple);
+}
+
+template <typename... Ts>
+auto tup_tail(const std::tuple<Ts...>& tuple) {
+    typedef const std::tuple<Ts...> Tuple;
+    static_assert(std::tuple_size<Tuple>::value > 0,
+        "Tail of an empty tuple is undefined");
+    return tuple_view<1, std::tuple_size<Tuple>::value, Tuple, false>(tuple);
 }
 
 template <int start
          ,int end
          ,typename Tuple
          ,bool reverse>
-auto tup_tail(tuple_view<start, end, Tuple, reverse>&& tupView) {
+auto tup_tail(tuple_view<start, end, Tuple, reverse>& tupView) {
+    return tupView.tail();
+}
+
+template <int start
+         ,int end
+         ,typename Tuple
+         ,bool reverse>
+auto tup_tail(const tuple_view<start, end, Tuple, reverse>& tupView) {
     return tupView.tail();
 }
 
 template <typename Tuple>
 auto tup_reverse(Tuple&& t) {
-    return tup_reverse_impl::make(t);
+    return tup_reverse_impl::make(std::forward<Tuple>(t));
 }
 
 template <size_t pos
@@ -211,7 +226,7 @@ struct tup_each_perform {
     template <typename Tuple
              ,typename... Tuples>
     void operator() (F f, Tuple&& t, Tuples&&... ts) const {
-        typedef typename std::remove_reference<Tuple>::type BareTuple;
+        typedef typename std::remove_reference_t<Tuple> BareTuple;
         f(meta::get<tup_size<BareTuple>::value - revPos>(
                     std::forward<Tuple>(t)),
           meta::get<tup_size<BareTuple>::value - revPos>(
@@ -233,7 +248,7 @@ template <typename F
          ,typename Tuple
          ,typename... Tuples>
 void tup_each(F f, Tuple&& t, Tuples&&... ts) {
-    typedef typename std::remove_reference<Tuple>::type BareTuple;
+    typedef typename std::remove_reference_t<Tuple> BareTuple;
     tup_each_perform<F, tup_size<BareTuple>::value>()(
             f, std::forward<Tuple>(t), std::forward<Tuples>(ts)...);
 }

@@ -17,14 +17,19 @@ include(${QT_USE_FILE})
 set (CMAKE_CXX_COMPILER clang++)
 set (CMAKE_CXX_FLAGS "-O3 -Wall -Wextra -Wunreachable-code -Werror --std=c++11 --std=c++1y -stdlib=libc++")
 
-add_executable (minst minst.cpp)
+add_executable (minst
+    minst.cpp
+    read_minst.cpp)
 target_link_libraries (minst
     ${Boost_PROGRAM_OPTIONS_LIBRARY})
 
 add_executable (autoenc
-    autoenc.cpp)
+    autoenc.cpp
+    read_minst.cpp)
 set_target_properties (autoenc PROPERTIES COMPILE_FLAGS -Wno-deprecated-register)
-target_link_libraries(autoenc ${QT_LIBRARIES})
+target_link_libraries (autoenc
+    ${Boost_PROGRAM_OPTIONS_LIBRARY}
+    ${QT_LIBRARIES})
 
 enable_testing()
 add_subdirectory (test)

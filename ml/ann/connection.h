@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ostream>
+#include <ml/exception.h>
 #include <random>
 #include <Eigen/Dense>
 
@@ -37,6 +37,20 @@ public:
         fillRandom(bias_);
     }
 
+    template <typename Weights, typename Bias>
+    void initWith(const Weights& weights, const Bias& bias) {
+        REQUIRE(weights.rows() == outSize && weights.cols() == inSize,
+            "Invalid weights size ("
+            << weights.rows() << "x" << weights.cols() << ")"
+            " != (" << outSize << "x" << inSize << ")");
+        REQUIRE(bias.rows() == outSize && bias.cols() == 1,
+            "Invalid bias size ("
+            << bias.rows() << "x" << bias.cols() << ")"
+            " != (" << outSize << "x" << 1 << ")");
+        weights_ = weights;
+        bias_ = bias;
+    }
+
     void zero() {
         weights_.fill(0.0);
         bias_.fill(0.0);
@@ -47,8 +61,12 @@ public:
         return weights_.squaredNorm();
     }
 
-    void dump(std::ostream& out) const {
-        out << weights_ << "\n\n";
+    const auto& weights() const {
+        return weights_;
+    }
+
+    const auto& bias() const {
+        return bias_;
     }
 
     // TODO: use a better name
@@ -70,14 +88,25 @@ public:
         bias_ += delta.rowwise().sum();
     }
 
+    template <typename Regularizer>
+    void applyRegularizer(const Regularizer& rglrz, double learningRate) {
+        rglrz.apply(weights_, learningRate);
+        // Do not regularize bias
+    }
+
     void update(
-            double regParam,
-            double learningRate,
-            const FullConnection& delta) {
-        weights_ *= (1.0 - regParam * learningRate);
-        bias_ *= (1.0 - regParam * learningRate);
+            const FullConnection& delta,
+            double learningRate) {
         weights_ -= learningRate * delta.weights_;
         bias_ -= learningRate * delta.bias_;
+    }
+
+    template <typename OStream
+             ,unsigned inSize_
+             ,unsigned outSize_>
+    friend OStream& operator<< (
+            OStream& o, const FullConnection<inSize_, outSize_>& fc) {
+        return (o << fc.weights_);
     }
 };
 

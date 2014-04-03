@@ -4,12 +4,12 @@
 #include <ml/ann/guts.h>
 #include <ml/ann/layer_types.h>
 #include <ml/ann/optimization.h>
+#include <ml/ann/params.h>
 
 #include <meta/meta.h>
 #include <meta/tuple.h>
 
 #include <cmath>
-#include <limits>
 #include <tuple>
 
 namespace ml {
@@ -37,35 +37,16 @@ struct NetworkConf {
     using Layers = typename detail::Layers<meta::none, LrTypes...>::type;
 
 private:
-    template <unsigned batchSize>
-    using ActivationTypes = meta::zipWith<
-        detail::Nodes,
-        Layers,
-        meta::list_of<
-            detail::BatchSize<batchSize>,
-            meta::length<Layers>::value>>;
-    template <unsigned batchSize>
-    using DeltaTypes = meta::zipWith<
-        detail::Nodes,
-        meta::tail<Layers>,
-        meta::list_of<
-            detail::BatchSize<batchSize>,
-            meta::length<Layers>::value - 1>>;
-
+    typedef meta::map<detail::Nodes, Layers> ActivationTypes;
+    typedef meta::map<detail::Nodes, meta::tail<Layers>> DeltaTypes;
     typedef meta::zipWith<
                     detail::Connection,
                     Layers,
                     meta::tail<Layers>> ConnectionTypes;
 public:
     typedef meta::apply<std::tuple, ConnectionTypes> Connections;
-
-    template <unsigned batchSize>
-    using Activations =
-        meta::apply<std::tuple, ActivationTypes<batchSize>>;
-
-    template <unsigned batchSize>
-    using Delta =
-        meta::apply<std::tuple, DeltaTypes<batchSize>>;
+    typedef meta::apply<std::tuple, ActivationTypes> Activations;
+    typedef meta::apply<std::tuple, DeltaTypes> Delta;
 
     static const QuadLoss lossFn;
 };
@@ -84,7 +65,6 @@ public:
         return detail::feedForward(
                 input, connections_, typename NetConf::Layers{});
     }
-
 private:
     typename NetConf::Connections connections_;
 };
@@ -93,62 +73,13 @@ private:
 
 
 template <typename Dataset
-         ,typename NetConf>
-class EarlyStopping {
-public:
-    EarlyStopping(const Dataset& validationSet,
-                  const unsigned epochsBetweenUpdates,
-                  typename NetConf::Connections& out)
-        : validationSet_(validationSet)
-        , epochsBetweenUpdates_(epochsBetweenUpdates)
-        , lastUpdateEpoch_(0)
-        , lowestLoss_(std::numeric_limits<double>::max())
-        , bestEpoch_(0)
-        , out_(out) {}
-
-    bool fulfilled(
-            const unsigned epoch,
-            const typename NetConf::Connections& connections) {
-        if (epoch - lastUpdateEpoch_ > epochsBetweenUpdates_) {
-            lastUpdateEpoch_ = epoch;
-            double currentLoss = loss(connections);
-            if (currentLoss < lowestLoss_) {
-                lowestLoss_ = currentLoss;
-                bestEpoch_ = epoch;
-                out_ = connections;
-            } else if (epoch - bestEpoch_ > 200) {
-                return true;
-            }
-        }
-        return false;
-    }
-private:
-    double loss(const typename NetConf::Connections& connections) const {
-        auto prediction = detail::feedForward(
-                                validationSet_.examples,
-                                connections,
-                                typename NetConf::Layers{});
-        return NetConf::lossFn(prediction, validationSet_.labels);
-    }
-
-    const Dataset& validationSet_;
-    const unsigned epochsBetweenUpdates_;
-    unsigned lastUpdateEpoch_;
-    double lowestLoss_;
-    unsigned bestEpoch_;
-    typename NetConf::Connections& out_;
-};
-
-
-template <typename NetConf, typename Dataset>
-auto train(NetConf, const Dataset& trainingSet, const Dataset& validationSet) {
-    typename NetConf::Connections connections;
-    //meta::tup_each([] (auto& c) { c.init(); }, connections);
-    //detail::batchGradDescent(trainingSet, 2.0, connections, NetConf{});
-    EarlyStopping<Dataset, NetConf> earlyStopping(validationSet, 5, connections);
-    detail::gradDescent<32, Dataset, decltype(earlyStopping), NetConf>(
-                trainingSet, 1.0, earlyStopping);
-    return ANNClassifier<NetConf>(std::move(connections));
+         ,typename NetworkParmas
+         ,typename OptzParams>
+auto train(const Dataset& trainingSet,
+        OptzParams optimizationParams, NetworkParmas) {
+    detail::gradDescent(trainingSet, optimizationParams, NetworkParmas{});
+    auto monitor = meta::get<optimizationMonitorP>(optimizationParams);
+    return ANNClassifier<NetworkParmas>(monitor.connections());
 }
 
 } // namespace ann
