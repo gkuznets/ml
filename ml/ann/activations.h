@@ -14,6 +14,13 @@ static inline double sigmoid(double x) {
     return TANH_COEFF * std::tanh(x);
 }*/
 
+struct Linear {
+    template <typename Input>
+    auto&& operator() (Input&& input) const {
+        return std::forward<Input>(input);
+    }
+};
+
 
 struct Tanh {
     double operator()(double x) const {
